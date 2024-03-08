@@ -40,39 +40,6 @@ class Gridworld:
         self.state = self.start
         return self.state
 
-""" gridworld = Gridworld(width=5, height=5, start=(0, 0), goal=(4, 4), obstacles=[(1,2),(2, 2), (3,2), (4,1)], rewards={(4, 4): 10, (2, 2): -1})
-
-
-def display_grid(state, width, height, goal, obstacles, clear_output=True):
-    if clear_output:
-        from IPython.display import clear_output
-        clear_output(wait=True)
-    
-    grid = [[' ' for _ in range(width)] for _ in range(height)]
-    for obstacle in obstacles:
-        grid[obstacle[0]][obstacle[1]] = 'X'  # Mark obstacles
-    grid[goal[0]][goal[1]] = 'G'  # Mark goal
-    grid[state[0]][state[1]] = 'A'  # Mark agent's current position
-    for row in grid[::-1]:  # Print from top to bottom
-        print(' '.join(row))
-    print("\n")
-
-
-
-start_state = gridworld.reset()
-print("Start State: ", start_state)
-display_grid(start_state, gridworld.width, gridworld.height, gridworld.goal, gridworld.obstacles)
-
-# Test 
-actions = ['right', 'left']
-for action in actions:
-    next_state, reward = gridworld.move(action)
-    print(f"Action: {action}, Next State: {next_state}, Reward: {reward}")
-    display_grid(next_state, gridworld.width, gridworld.height, gridworld.goal, gridworld.obstacles)
-    if gridworld.is_goal_reached():
-        print("Goal Reached!")
-        break
- """
 
 
 
@@ -86,37 +53,60 @@ gridworld = Gridworld(
     rewards={(7,6): 10} 
 )
 
+import numpy as np
+
+def state_to_one_hot(state, grid_size):
+    
+    index = state[0] * grid_size + state[1]
+    one_hot = np.zeros(grid_size**2)
+    one_hot[index] = 1
+    return one_hot
+
+def action_to_index(action):
+  
+    action_mapping = {'up': 0, 'down': 1, 'left': 2, 'right': 3}
+    return action_mapping[action]
+
 class QLearningAgent:
-    def __init__(self, alpha, gamma, epsilon, actions):
+    def __init__(self, alpha, gamma, epsilon, action_list, grid_size):
         self.q_table = {}
         self.alpha = alpha
-        self.gamma = gamma  
-        self.epsilon = epsilon  
-        self.actions = actions 
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.action_list = action_list
+        self.grid_size = grid_size
 
     def get_q_value(self, state, action):
-        return self.q_table.get((state, action), 0.0)
+  
+        state_index = np.argmax(state)  
+        action_index = action_to_index(action)
+        return self.q_table.get((state_index, action_index), 0.0)
 
     def choose_action(self, state):
-        if np.random.uniform(0, 1) < self.epsilon:  
-            return np.random.choice(self.actions)
-        else:  # Exploit
-            q_values = [self.get_q_value(state, action) for action in self.actions]
+        if np.random.uniform(0, 1) < self.epsilon:
+            return np.random.choice(self.action_list)
+        else:
+            one_hot_state = state_to_one_hot(state, self.grid_size)
+            q_values = [self.get_q_value(one_hot_state, action) for action in self.action_list]
             max_q = max(q_values)
-            actions_with_max_q = [self.actions[i] for i in range(len(self.actions)) if q_values[i] == max_q]
+            actions_with_max_q = [self.action_list[i] for i in range(len(self.action_list)) if q_values[i] == max_q]
             return np.random.choice(actions_with_max_q)
 
     def learn(self, state, action, reward, next_state):
-        current_q = self.get_q_value(state, action)
-        max_next_q = max([self.get_q_value(next_state, a) for a in self.actions])
+        one_hot_state = state_to_one_hot(state, self.grid_size)
+        one_hot_next_state = state_to_one_hot(next_state, self.grid_size)
+        current_q = self.get_q_value(one_hot_state, action)
+        max_next_q = max([self.get_q_value(one_hot_next_state, a) for a in self.action_list])
         new_q = current_q + self.alpha * (reward + self.gamma * max_next_q - current_q)
-        self.q_table[(state, action)] = new_q
+        state_index = np.argmax(one_hot_state)
+        action_index = action_to_index(action)
+        self.q_table[(state_index, action_index)] = new_q
 
 
 alpha = 0.4  
 gamma = 0.99  
 epsilon = 0.41  
-agent = QLearningAgent(alpha, gamma, epsilon, gridworld.actions)
+agent = QLearningAgent(alpha, gamma, epsilon, gridworld.actions, 8)
 
 
 
