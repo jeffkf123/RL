@@ -6,7 +6,7 @@ import torch.nn.functional as F
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 64)  # Adjust the size to your needs
+        self.fc1 = nn.Linear(input_dim, 64) 
         self.fc2 = nn.Linear(64, 64)
         self.out = nn.Linear(64, output_dim)
 
@@ -25,7 +25,7 @@ class Gridworld:
         self.obstacles = set(obstacles if obstacles else [])
         self.rewards = rewards if rewards else {}
         self.actions = ['up', 'down', 'left', 'right']
-        self.state = self.start  # Track state as grid position for internal logic
+        self.state = self.start  
 
     def _encode_state(self, position):
         """One-hot encode the grid position."""
@@ -47,21 +47,21 @@ class Gridworld:
         else:
             next_state = self.state
 
-        # Check for obstacles and goal
+      
         if next_state in self.obstacles:
-            reward = -10  # Assume a fixed penalty for hitting an obstacle
-            done = True  # End the episode if an obstacle is hit
+            reward = -10  
+            done = True  
         elif next_state == self.goal:
             reward = self.rewards.get(next_state, 0)
-            done = True  # End the episode if the goal is reached
+            done = True  
         else:
-            reward = self.rewards.get(next_state, 0)  # Default reward for non-terminal states
+            reward = self.rewards.get(next_state, 0)  
             done = False
 
-        # Update the current state
+      
         self.state = next_state
 
-        # Return the one-hot encoded state, reward, and done status
+      
         return self._encode_state(next_state), reward, done
 
     def reset(self):
@@ -99,8 +99,8 @@ class DQNAgent:
         self.action_size = action_size
         self.memory = ReplayMemory(memory_size)
         self.batch_size = batch_size
-        self.gamma = gamma  # discount rate
-        self.epsilon = epsilon  # exploration rate
+        self.gamma = gamma  # discount
+        self.epsilon = epsilon  # exploration
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
         self.learning_rate = learning_rate
@@ -109,11 +109,11 @@ class DQNAgent:
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def remember(self, state, action, reward, next_state, done):
-        """Remember (store) an experience (transition)"""
+        # Remember an experience
         self.memory.push(torch.FloatTensor([state]), torch.LongTensor([[action]]), torch.FloatTensor([reward]), torch.FloatTensor([next_state]), done)
 
     def choose_action(self, state):
-        """Choose an action based on epsilon-greedy policy"""
+        #Choose an action based on epsilon-greedy policy
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
         else:
@@ -123,7 +123,7 @@ class DQNAgent:
             return np.argmax(action_values.cpu().data.numpy())
 
     def replay(self):
-        """Experience replay to update the neural network"""
+        #Experience replay to update the neural network 
         if len(self.memory) < self.batch_size:
             return
         transitions = self.memory.sample(self.batch_size)
@@ -135,13 +135,12 @@ class DQNAgent:
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
 
-        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the columns of actions taken
         state_action_values = self.model(state_batch).gather(1, action_batch)
 
-        # Compute V(s_{t+1}) for all next states.
+        #V(s_{t+1}) for all next states.
         next_state_values = torch.zeros(self.batch_size)
         next_state_values[non_final_mask] = self.model(non_final_next_states).max(1)[0].detach()
-        # Compute the expected Q values
+        # expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
         # Compute Huber loss
@@ -155,22 +154,22 @@ class DQNAgent:
         self.optimizer.step()
 
     def update_epsilon(self):
-        """Update epsilon value using exponential decay"""
+        #exponential decay
         self.epsilon = max(self.epsilon_min, self.epsilon_decay * self.epsilon)
 
-# Initialize the Gridworld environment with parameters
-gridworld = Gridworld(
-    width=5,  # Grid width
-    height=5,  # Grid height
-    start=(0, 0),  # Start position
-    goal=(4, 4),  # Goal position
-    obstacles=[(1, 1), (2, 2), (3, 3)],  # Obstacles
-    rewards={(4, 4): 10}  # Rewards, with the goal having a reward of 10
-)
-# Assuming necessary imports and DQN, DQNAgent definitions are already provided
 
-state_size = gridworld.width * gridworld.height  # One-hot encoded state size
-action_size = 4  # Four possible actions: up, down, left, right
+gridworld = Gridworld(
+    width=7,  
+    height=7,  
+    start=(0, 0), 
+    goal=(6 ,6), 
+    obstacles=[(3, 1), (4, 2), (5, 3)],  
+    rewards={(6, 6): 300}  
+)
+
+
+state_size = gridworld.width * gridworld.height  
+action_size = 4  
 
 agent = DQNAgent(
     state_size=state_size,
@@ -184,45 +183,43 @@ agent = DQNAgent(
     batch_size=64
 )
 
-num_episodes = 1000  # Total number of episodes to train
-max_steps_per_episode = 100  # Max steps allowed for a single episode
-update_every = 4  # Learn every `update_every` steps
-goal_reached = 0  # Track how many times the goal is reached
+num_episodes = 1000  
+max_steps_per_episode = 100  
+update_every = 4  
+goal_reached = 0  
 
 for episode in range(num_episodes):
-    # Reset the state of the environment to the starting state
+
     state = gridworld.reset()
     total_reward = 0
     done = False
 
     for step in range(max_steps_per_episode):
-        # Decide on an action
+   
         action = agent.choose_action(state)
-        # Take the action, observe the new state and reward
+
         actions = ['up', 'down', 'left', 'right']
         next_state, reward, done = gridworld.move(gridworld.actions[action])
 
-        # Store transition in memory
+  
         agent.remember(state, action, reward, next_state, done)
 
-        # Move to the next state
         state = next_state
         total_reward += reward
 
-        # If the episode is done, exit the loop
+      
         if done:
             if reward > 0:  # Assuming positive reward is only from reaching the goal
                 goal_reached += 1
             break
 
-        # Learning
+        
         if step % update_every == 0:
             agent.replay()
 
-    # Update epsilon
+   
     agent.update_epsilon()
 
-    # Print episode summary
     if episode % 100 == 0:
         print(f"Episode: {episode}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}, Goal Reached: {goal_reached}")
 
@@ -234,7 +231,7 @@ pygame.init()
 
 
 WIDTH, HEIGHT = 500, 500
-GRID_SIZE = 5
+GRID_SIZE = 7
 CELL_SIZE = WIDTH // GRID_SIZE
 
 # Colors
